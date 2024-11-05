@@ -1,6 +1,6 @@
 ################################################################################
 # Automatically-generated file. Do not edit!
-# Toolchain: GNU Tools for STM32 (10.3-2021.10)
+# Toolchain: GNU Tools for STM32 (11.3.rel1)
 ################################################################################
 
 -include ../makefile.init
@@ -60,8 +60,8 @@ all: main-build
 main-build: pulse_gen1.elf secondary-outputs
 
 # Tool invocations
-pulse_gen1.elf pulse_gen1.map: $(OBJS) $(USER_OBJS) E:\Workspace\tests\pulse_gen1\STM32F103RBTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "pulse_gen1.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m3 -T"E:\Workspace\tests\pulse_gen1\STM32F103RBTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="pulse_gen1.map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+pulse_gen1.elf pulse_gen1.map: $(OBJS) $(USER_OBJS) /home/esolotin/Projects/my_repo/pulse_gen/STM32F103RBTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "pulse_gen1.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m3 -T"/home/esolotin/Projects/my_repo/pulse_gen/STM32F103RBTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="pulse_gen1.map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

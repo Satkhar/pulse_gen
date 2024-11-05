@@ -34,9 +34,9 @@
 /* USER CODE BEGIN PD */
 
 // 0..
-#define PULSE_DURATION 500
+#define PULSE_DURATION 100
 
-#define DUTY 50
+#define DUTY 20
 
 #define TRIANGLE_UP 50
 #define TRIANGLE_DOWN 50
@@ -45,17 +45,14 @@
 #define TRAPEZE_DECR 25
 
 
-#define TRIANGLE_UP_DURATION TRIANGLE_UP * DURATION_STEP
-#define TRIANGLE_DOWN_DURATION TRIANGLE_DOWN * DURATION_STEP
+#define TRIANGLE_UP_DURATION TRIANGLE_UP
+#define TRIANGLE_DOWN_DURATION TRIANGLE_DOWN
 
-#define TRAPEZE_UP_DURATION 	PULSE_DURATION*DURATION_STEP - \
-								TRAPEZE_INCR*DURATION_STEP - \
-								TRAPEZE_DECR*DURATION_STEP
+#define TRAPEZE_UP_DURATION 	PULSE_DURATION - \
+								TRAPEZE_INCR - \
+								TRAPEZE_DECR
 
-#define MAX_DURATION PULSE_DURATION * DURATION_STEP
-#define DURATION_STEP 1320
-
-#define UP_DURATION (MAX_DURATION - (MAX_DURATION/100)*(100-DUTY))
+#define UP_DURATION (PULSE_DURATION - (PULSE_DURATION/100)*(100-DUTY))
 
 
 /* USER CODE END PD */
@@ -76,6 +73,7 @@ UART_HandleTypeDef huart2;
 uint8_t mode;
 // directional. 0 - default
 uint8_t direction = 0;
+uint16_t start_time = 0;
 
 /* USER CODE END PV */
 
@@ -126,23 +124,23 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   mode = 0; // init mode. pulse
-  uint16_t i = 0;
+  uint32_t i = 0;
 
   // var for pulse
-  uint32_t duration = PULSE_DURATION * DURATION_STEP;
-//  uint32_t duration = 65535;
 
   uint32_t pulse_count = 0;
 
   // var for trianlge
+  uint8_t test_triangle = 0;
+  uint32_t triangle_cur_time = 0;
+  uint32_t triangle_up_time = 0;
 
   // var for trapeze and
   uint32_t trapeze_up_count = 0;
 
-  uint32_t time = SysTick->VAL;
-  uint32_t new_time = 0;
-  uint32_t up_time = 0;
-  uint32_t down_time = 0;
+//  uint16_t cur_time = HAL_GetTick();
+  uint16_t up_time = 0;
+
 
   /* USER CODE END 2 */
 
@@ -152,62 +150,79 @@ int main(void)
 
   while (1)
   {
-		  if(mode == 0)	// pulse
+	  HAL_GPIO_TogglePin(GPIOC , GPIO_PIN_9);
+	  if(mode == 0)	// pulse
 		  {
 			  if(direction == 0)
 			  {
-//				  pulse_count++;
-//
-//				  if(pulse_count > UP_DURATION)
-//				  {
-//
-//					  TIM1->CCR1=0;
-//					  direction = 1;
-//				  }
-				  if(up_time == 0)
-					  up_time = SysTick->VAL;
+				  if(start_time == 0)
+					  start_time = HAL_GetTick();
 
-				  if((up_time - SysTick->VAL) > UP_DURATION)
+				  up_time = HAL_GetTick();
+
+				  if(up_time - start_time == UP_DURATION)
 				  {
 					  TIM1->CCR1=0;
 					  direction = 1;
 				  }
+
 			  }
 			  else
 			  {
-//				  pulse_count++;
+				  up_time = HAL_GetTick();
 
-//				  if(pulse_count >= MAX_DURATION)
-//				  {
-//
-//					  TIM1->CCR1=65535;
-//					  direction = 0;
-//					  pulse_count = 0;
-//				  }
-
-				  if((up_time - SysTick->VAL) >= MAX_DURATION)
+				  if(up_time - start_time >= PULSE_DURATION)
 				  {
 					  TIM1->CCR1=65535;
 					  direction = 0;
-					  pulse_count = 0;
-					  up_time = SysTick->VAL;
+					  start_time = 0;
 				  }
 			  }
 		  }
 		  else if(mode == 1)	//	triangle
 		  {
-			  if(direction == 0)
+			  if(test_triangle == 0)
 			  {
-				  TIM1->CCR1=++i;
-				  if(i == 65535)
-					  direction = 1;
+				  if(triangle_cur_time == 0)
+					  triangle_cur_time = HAL_GetTick();
+
+				  if(direction == 0)
+				  {
+					  TIM1->CCR1=++i;
+//					  i=i+10;
+					  if(i >= 65535)
+					  {
+						  direction = 1;
+						  triangle_up_time = HAL_GetTick() - triangle_cur_time;
+					  }
+				  }
+				  else
+				  {
+					  TIM1->CCR1=--i;
+//					  i=i-10;
+					  if(i <= 10)
+						  direction = 0;
+
+					  test_triangle = 1;
+				  }
 			  }
 			  else
 			  {
-				  TIM1->CCR1=--i;
-				  if(i == 0)
-					  direction = 0;
-			  }
+				  if(direction == 0)
+				  {
+					  TIM1->CCR1=i;
+					  i=i+10;
+					  if(i >= 65535)
+						  direction = 1;
+				  }
+				  else
+				  {
+					  TIM1->CCR1=i;
+					  i=i-10;
+					  if(i <= 10)
+						  direction = 0;
+				  }
+		  	  }
 
 		  }
 		  else if(mode == 2)	// trapeze
@@ -400,6 +415,8 @@ static void MX_USART2_UART_Init(void)
 static void MX_GPIO_Init(void)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
+/* USER CODE BEGIN MX_GPIO_Init_1 */
+/* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOC_CLK_ENABLE();
@@ -409,6 +426,9 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : B1_Pin */
   GPIO_InitStruct.Pin = B1_Pin;
@@ -423,10 +443,19 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : PC9 */
+  GPIO_InitStruct.Pin = GPIO_PIN_9;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
+/* USER CODE BEGIN MX_GPIO_Init_2 */
+/* USER CODE END MX_GPIO_Init_2 */
 }
 
 /* USER CODE BEGIN 4 */
@@ -437,6 +466,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 
   (mode < 2) ? (mode++) : (mode = 0);
   direction = 0;
+  start_time = 0;
   /* NOTE: This function Should not be modified, when the callback is needed,
            the HAL_GPIO_EXTI_Callback could be implemented in the user file
    */
