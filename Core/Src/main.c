@@ -38,7 +38,7 @@
 
 #define DUTY 20
 
-#define TRIANGLE_UP 50
+#define TRIANGLE_UP 70
 #define TRIANGLE_DOWN 50
 
 #define TRAPEZE_INCR 25
@@ -134,6 +134,9 @@ int main(void)
   uint8_t test_triangle = 0;
   uint32_t triangle_cur_time = 0;
   uint32_t triangle_up_time = 0;
+  uint32_t step_count = 0; // num of write iteration in 1ms
+  uint16_t i_step_up = 0;
+  uint16_t i_step_down = 0;
 
   // var for trapeze and
   uint32_t trapeze_up_count = 0;
@@ -165,7 +168,6 @@ int main(void)
 					  TIM1->CCR1=0;
 					  direction = 1;
 				  }
-
 			  }
 			  else
 			  {
@@ -205,21 +207,27 @@ int main(void)
 
 					  test_triangle = 1;
 				  }
+				  if(test_triangle == 1)
+				  {
+					  step_count = (65535 / triangle_up_time) * TRIANGLE_UP;
+					  i_step_up = 65535/step_count;
+					  i_step_down = triangle_up_time / TRIANGLE_DOWN;
+				  }
 			  }
 			  else
 			  {
 				  if(direction == 0)
 				  {
 					  TIM1->CCR1=i;
-					  i=i+10;
+					  i=i+i_step_up;
 					  if(i >= 65535)
 						  direction = 1;
 				  }
 				  else
 				  {
 					  TIM1->CCR1=i;
-					  i=i-10;
-					  if(i <= 10)
+					  i=i-i_step_down;
+					  if(i <= i_step_down)
 						  direction = 0;
 				  }
 		  	  }
@@ -273,12 +281,13 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.HSEState = RCC_HSE_BYPASS;
+  RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI_DIV2;
-  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL16;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
