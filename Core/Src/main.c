@@ -33,27 +33,31 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
-// 0..
+// parametric variables
+
 #define PULSE_DURATION 100
 
-#define DUTY 20
+#define DUTY 			50
 
-#define TRIANGLE_UP 70
-#define TRIANGLE_DOWN 50
+#define TRIANGLE_UP 	70
+#define TRIANGLE_DOWN 	50
 
-#define TRAPEZE_INCR 25
-#define TRAPEZE_DECR 25
+#define TRAPEZE_UP 		25
+#define TRAPEZE_DOWN 	25
 
 
-#define TRIANGLE_UP_DURATION TRIANGLE_UP
-#define TRIANGLE_DOWN_DURATION TRIANGLE_DOWN
+// const variables
+
+#define MAX_CCR 64000
+
+#define TRIANGLE_UP_DURATION 	TRIANGLE_UP
+#define TRIANGLE_DOWN_DURATION 	TRIANGLE_DOWN
 
 #define TRAPEZE_UP_DURATION 	PULSE_DURATION - \
-								TRAPEZE_INCR - \
-								TRAPEZE_DECR
+								TRAPEZE_UP - \
+								TRAPEZE_DOWN
 
-#define UP_DURATION (PULSE_DURATION - (PULSE_DURATION/100)*(100-DUTY))
-
+#define UP_DURATION 	(PULSE_DURATION - (PULSE_DURATION/100)*(100-DUTY))
 
 /* USER CODE END PD */
 
@@ -126,10 +130,6 @@ int main(void)
   mode = 0; // init mode. pulse
   uint32_t i = 0;
 
-  // var for pulse
-
-  uint32_t pulse_count = 0;
-
   // var for trianlge
   uint8_t test_triangle = 0;
   uint32_t triangle_cur_time = 0;
@@ -139,7 +139,8 @@ int main(void)
   uint16_t i_step_down = 0;
 
   // var for trapeze and
-  uint32_t trapeze_up_count = 0;
+  uint32_t trapeze_up_time = 0;
+  uint8_t test_trapeze = 0;
 
 //  uint16_t cur_time = HAL_GetTick();
   uint16_t up_time = 0;
@@ -154,99 +155,53 @@ int main(void)
   while (1)
   {
 	  HAL_GPIO_TogglePin(GPIOC , GPIO_PIN_9);
+
 	  if(mode == 0)	// pulse
+	  {
+		  if(direction == 0)
 		  {
-			  if(direction == 0)
+			  if(start_time == 0)
+				  start_time = HAL_GetTick();
+
+			  up_time = HAL_GetTick();
+
+			  if(up_time - start_time == UP_DURATION)
 			  {
-				  if(start_time == 0)
-					  start_time = HAL_GetTick();
-
-				  up_time = HAL_GetTick();
-
-				  if(up_time - start_time == UP_DURATION)
-				  {
-					  TIM1->CCR1=0;
-					  direction = 1;
-				  }
-			  }
-			  else
-			  {
-				  up_time = HAL_GetTick();
-
-				  if(up_time - start_time >= PULSE_DURATION)
-				  {
-					  TIM1->CCR1=65535;
-					  direction = 0;
-					  start_time = 0;
-				  }
+				  TIM1->CCR1=MAX_CCR;
+				  direction = 1;
 			  }
 		  }
-		  else if(mode == 1)	//	triangle
+		  else
 		  {
-			  if(test_triangle == 0)
+			  up_time = HAL_GetTick();
+
+			  if(up_time - start_time >= PULSE_DURATION)
 			  {
-				  if(triangle_cur_time == 0)
-					  triangle_cur_time = HAL_GetTick();
-
-				  if(direction == 0)
-				  {
-					  TIM1->CCR1=++i;
-//					  i=i+10;
-					  if(i >= 65535)
-					  {
-						  direction = 1;
-						  triangle_up_time = HAL_GetTick() - triangle_cur_time;
-					  }
-				  }
-				  else
-				  {
-					  TIM1->CCR1=--i;
-//					  i=i-10;
-					  if(i <= 10)
-						  direction = 0;
-
-					  test_triangle = 1;
-				  }
-				  if(test_triangle == 1)
-				  {
-					  step_count = (65535 / triangle_up_time) * TRIANGLE_UP;
-					  i_step_up = 65535/step_count;
-					  i_step_down = triangle_up_time / TRIANGLE_DOWN;
-				  }
+				  TIM1->CCR1= 0;
+				  direction = 0;
+				  start_time = 0;
 			  }
-			  else
-			  {
-				  if(direction == 0)
-				  {
-					  TIM1->CCR1=i;
-					  i=i+i_step_up;
-					  if(i >= 65535)
-						  direction = 1;
-				  }
-				  else
-				  {
-					  TIM1->CCR1=i;
-					  i=i-i_step_down;
-					  if(i <= i_step_down)
-						  direction = 0;
-				  }
-		  	  }
-
 		  }
-		  else if(mode == 2)	// trapeze
+	  }
+	  else if(mode == 1)	//	triangle
+	  {
+		  if(test_triangle == 0)
 		  {
+
+
+			  if(triangle_cur_time == 0)
+			  {
+				  triangle_cur_time = HAL_GetTick();
+				  i = 0;
+			  }
+
 			  if(direction == 0)
 			  {
 				  TIM1->CCR1=++i;
-				  if(i == 65535)
-					  direction = 1;
-			  }
-			  else if(direction == 1)
-			  {
-				  trapeze_up_count++;
-				  if(trapeze_up_count > TRAPEZE_UP_DURATION)
+				  if(i >= MAX_CCR)
 				  {
-					  direction++;
+					  direction = 1;
+					  triangle_up_time = HAL_GetTick() - triangle_cur_time;
 				  }
 			  }
 			  else
@@ -254,14 +209,79 @@ int main(void)
 				  TIM1->CCR1=--i;
 				  if(i == 0)
 					  direction = 0;
+
+				  test_triangle = 1;
+			  }
+
+			  if(test_triangle == 1)
+			  {
+				  step_count = (MAX_CCR / triangle_up_time) * TRIANGLE_UP;
+				  i_step_up = MAX_CCR / step_count;
+				  i_step_down = triangle_up_time / TRIANGLE_DOWN;
+			  }
+		  }
+		  else
+		  {
+			  if(direction == 0)
+			  {
+				  TIM1->CCR1=i;
+				  i=i+i_step_up;
+				  if(i >= MAX_CCR)
+					  direction = 1;
+			  }
+			  else
+			  {
+				  TIM1->CCR1=i;
+				  i=i-i_step_down;
+				  if(i <= i_step_down)
+					  direction = 0;
 			  }
 		  }
 
-//		  while((current_time - HAL_GetTick()) < 1);
+	  }
+	  else if(mode == 2)	// trapeze
+	  {
+		  if(test_trapeze == 0)
+		  {
+			  i = 0;
+			  step_count = (MAX_CCR / triangle_up_time) * TRAPEZE_UP;
+			  i_step_up = MAX_CCR / step_count;
+			  i_step_down = triangle_up_time / TRAPEZE_DOWN;
+			  test_trapeze = 1;
+		  }
 
-//		  i=60536;
-//		  TIM1->CCR1=i;
+		  if(direction == 0)
+		  {
+			  TIM1->CCR1=i;
+			  i = i + i_step_up;
 
+			  if(i == MAX_CCR)
+				  direction = 1;
+		  }
+		  else if(direction == 1)
+		  {
+			  if(start_time == 0)
+				  start_time = HAL_GetTick();
+
+			  trapeze_up_time = HAL_GetTick();
+
+			  if(trapeze_up_time - start_time > TRAPEZE_UP_DURATION)
+			  {
+				  direction++;
+			  }
+		  }
+		  else
+		  {
+			  TIM1->CCR1=i;
+			  i = i - i_step_down;
+
+			  if(i <= i_step_down)
+			  {
+				  direction = 0;
+				  start_time = 0;
+			  }
+		  }
+	  }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -281,13 +301,12 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-  RCC_OscInitStruct.HSEState = RCC_HSE_BYPASS;
-  RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI_DIV2;
+  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL16;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -331,7 +350,7 @@ static void MX_TIM1_Init(void)
   htim1.Instance = TIM1;
   htim1.Init.Prescaler = 0;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim1.Init.Period = 65535;
+  htim1.Init.Period = 63999;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim1.Init.RepetitionCounter = 0;
   htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
